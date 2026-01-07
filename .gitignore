@@ -8,7 +8,7 @@ package-lock.json
 .env.production
 
 # Uploads and data
-backend/uploads/
+server/uploads/
 *.db
 *.sqlite
 
@@ -29,8 +29,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build output
-dist/
+# Build output (keep client/dist for deployment)
 build/
 
 # Temporary files

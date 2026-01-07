@@ -20,7 +20,9 @@ const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Serve static files from Vite build
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // Initialize LangGraph Agent with Government Professional personality
 const agent = new DocumentAgent(GROQ_API_KEY, {
@@ -483,6 +485,11 @@ function cosineSimilarity(vec1, vec2) {
     const mag2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
     return dotProduct / (mag1 * mag2);
 }
+
+// Catch-all route for React app (must be after API routes)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
 // Start Server
 async function startServer() {
