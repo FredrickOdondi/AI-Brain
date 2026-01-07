@@ -64,20 +64,9 @@ const inMemoryStore = {
     metadata: []
 };
 
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-    destination: async (req, file, cb) => {
-        await fs.mkdir(UPLOAD_DIR, { recursive: true });
-        cb(null, UPLOAD_DIR);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + '-' + file.originalname);
-    }
-});
-
+// Configure Multer for file uploads (use memory storage for serverless compatibility)
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
     fileFilter: (req, file, cb) => {
         const allowedTypes = /pdf|doc|docx|txt|md/;
@@ -173,8 +162,8 @@ app.post('/api/documents/upload', upload.array('documents'), async (req, res) =>
             try {
                 console.log(`[Upload] Processing: ${file.originalname}`);
 
-                // Extract text from file
-                const text = await extractTextFromFile(file.path, file.mimetype);
+                // Extract text from file buffer (no disk writes)
+                const text = await extractTextFromBuffer(file.buffer, file.originalname, file.mimetype);
                 console.log(`[Upload] Extracted ${text.length} characters from ${file.originalname}`);
 
                 // Split into chunks
@@ -186,25 +175,19 @@ app.post('/api/documents/upload', upload.array('documents'), async (req, res) =>
                 console.log(`[Upload] Stored chunks for ${file.originalname}`);
 
                 // Save metadata
+                const docId = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${file.originalname}`;
                 const docMetadata = {
-                    id: file.filename,
+                    id: docId,
                     name: file.originalname,
                     size: file.size,
                     uploadedAt: new Date().toISOString(),
-                    chunks: chunks.length,
-                    path: file.path
+                    chunks: chunks.length
                 };
 
                 documentsMetadata.push(docMetadata);
                 uploadedDocs.push(docMetadata);
             } catch (fileError) {
                 console.error(`[Upload] Error processing ${file.originalname}:`, fileError);
-                // Delete the failed file
-                try {
-                    await fs.unlink(file.path);
-                } catch (unlinkError) {
-                    console.error('[Upload] Failed to delete errored file:', unlinkError);
-                }
                 throw new Error(`Failed to process ${file.originalname}: ${fileError.message}`);
             }
         }
@@ -235,16 +218,7 @@ app.delete('/api/documents/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Document not found' });
         }
 
-        const doc = documentsMetadata[docIndex];
-
-        // Delete file
-        try {
-            await fs.unlink(doc.path);
-        } catch (error) {
-            console.warn('File not found:', error.message);
-        }
-
-        // Remove from vector store
+        // Remove from vector store (no file deletion needed with memory storage)
         if (collection) {
             await collection.delete({ where: { documentId: id } });
         } else {
@@ -375,6 +349,29 @@ app.post('/api/chat', async (req, res) => {
 
 // Helper Functions
 
+// Extract text from file buffer (serverless-compatible)
+async function extractTextFromBuffer(buffer, filename, mimeType) {
+    const ext = path.extname(filename).toLowerCase();
+
+    try {
+        if (ext === '.pdf') {
+            const data = await pdf(buffer);
+            return data.text;
+        } else if (ext === '.docx' || ext === '.doc') {
+            const result = await mammoth.extractRawText({ buffer: buffer });
+            return result.value;
+        } else if (ext === '.txt' || ext === '.md') {
+            return buffer.toString('utf-8');
+        } else {
+            throw new Error('Unsupported file type');
+        }
+    } catch (error) {
+        console.error('Text extraction error:', error);
+        throw error;
+    }
+}
+
+// Legacy function for local development (keeping for backward compatibility)
 async function extractTextFromFile(filePath, mimeType) {
     const ext = path.extname(filePath).toLowerCase();
 
@@ -545,9 +542,6 @@ app.get('*', (req, res) => {
 // Start Server
 async function startServer() {
     await initializeChroma();
-
-    // Create uploads directory
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
     app.listen(PORT, () => {
         console.log(`
