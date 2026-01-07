@@ -65,6 +65,7 @@ const inMemoryStore = {
 };
 
 // Configure Multer for file uploads (use memory storage for serverless compatibility)
+// All files are processed in memory - no disk writes (Vercel serverless compatible)
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
