@@ -159,36 +159,57 @@ app.get('/api/documents', async (req, res) => {
 // Upload documents
 app.post('/api/documents/upload', upload.array('documents'), async (req, res) => {
     try {
+        console.log('[Upload] Received upload request');
+
         if (!req.files || req.files.length === 0) {
+            console.log('[Upload] No files in request');
             return res.status(400).json({ success: false, message: 'No files uploaded' });
         }
 
+        console.log(`[Upload] Processing ${req.files.length} file(s)`);
         const uploadedDocs = [];
 
         for (const file of req.files) {
-            // Extract text from file
-            const text = await extractTextFromFile(file.path, file.mimetype);
+            try {
+                console.log(`[Upload] Processing: ${file.originalname}`);
 
-            // Split into chunks
-            const chunks = splitIntoChunks(text, 1000);
+                // Extract text from file
+                const text = await extractTextFromFile(file.path, file.mimetype);
+                console.log(`[Upload] Extracted ${text.length} characters from ${file.originalname}`);
 
-            // Generate embeddings and store
-            await storeDocumentChunks(file.originalname, chunks, file.size);
+                // Split into chunks
+                const chunks = splitIntoChunks(text, 1000);
+                console.log(`[Upload] Created ${chunks.length} chunks`);
 
-            // Save metadata
-            const docMetadata = {
-                id: file.filename,
-                name: file.originalname,
-                size: file.size,
-                uploadedAt: new Date().toISOString(),
-                chunks: chunks.length,
-                path: file.path
-            };
+                // Generate embeddings and store
+                await storeDocumentChunks(file.originalname, chunks, file.size);
+                console.log(`[Upload] Stored chunks for ${file.originalname}`);
 
-            documentsMetadata.push(docMetadata);
-            uploadedDocs.push(docMetadata);
+                // Save metadata
+                const docMetadata = {
+                    id: file.filename,
+                    name: file.originalname,
+                    size: file.size,
+                    uploadedAt: new Date().toISOString(),
+                    chunks: chunks.length,
+                    path: file.path
+                };
+
+                documentsMetadata.push(docMetadata);
+                uploadedDocs.push(docMetadata);
+            } catch (fileError) {
+                console.error(`[Upload] Error processing ${file.originalname}:`, fileError);
+                // Delete the failed file
+                try {
+                    await fs.unlink(file.path);
+                } catch (unlinkError) {
+                    console.error('[Upload] Failed to delete errored file:', unlinkError);
+                }
+                throw new Error(`Failed to process ${file.originalname}: ${fileError.message}`);
+            }
         }
 
+        console.log(`[Upload] Successfully processed ${uploadedDocs.length} document(s)`);
         res.json({
             success: true,
             message: 'Documents uploaded successfully',
@@ -196,8 +217,11 @@ app.post('/api/documents/upload', upload.array('documents'), async (req, res) =>
             documents: uploadedDocs
         });
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[Upload] Upload error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Upload failed'
+        });
     }
 });
 
@@ -485,6 +509,33 @@ function cosineSimilarity(vec1, vec2) {
     const mag2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
     return dotProduct / (mag1 * mag2);
 }
+
+// Error handling middleware for multer
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        console.error('[Multer Error]:', error);
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                success: false,
+                message: 'File too large. Maximum size is 100MB.'
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            message: `Upload error: ${error.message}`
+        });
+    }
+
+    if (error) {
+        console.error('[Server Error]:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Internal server error'
+        });
+    }
+
+    next();
+});
 
 // Catch-all route for React app (must be after API routes)
 app.get('*', (req, res) => {
