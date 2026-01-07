@@ -1,0 +1,15 @@
+{
+  "name": "ai-brain",
+  "version": "1.0.0",
+  "description": "AI Knowledge Base System with LangGraph Agent",
+  "scripts": {
+    "install-all": "npm install --prefix client && npm install --prefix server",
+    "build": "npm run build --prefix client",
+    "start": "node server/server.js",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server"
+  },
+  "keywords": ["ai", "langgraph", "knowledge-base", "rag", "groq"],
+  "author": "",
+  "license": "ISC"
+}
