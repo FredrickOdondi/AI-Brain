@@ -1,0 +1,406 @@
+{
+  "investmentCriteria": {
+    "profitMargins": {
+      "minimum": 30000,
+      "target": 50000,
+      "ideal": 75000
+    },
+    "arvRatio": {
+      "maximum": 0.75,
+      "target": 0.70,
+      "aggressive": 0.80
+    },
+    "holdTime": {
+      "minimumMonths": 6,
+      "targetMonths": 12,
+      "maximumMonths": 24
+    },
+    "cashReserves": {
+      "minimum": 10000,
+      "recommended": 20000
+    },
+    "riskTolerance": "medium"
+  },
+
+  "dealStructures": {
+    "sellerFinance": {
+      "name": "Seller Finance",
+      "idealFor": [
+        "Free and clear properties",
+        "Low mortgage balance",
+        "Seller needs monthly income",
+        "Not in rush to sell",
+        "Seller wants to avoid capital gains tax"
+      ],
+      "requiredConditions": [
+        "Seller owns property outright or nearly",
+        "Seller has stable financial situation",
+        "Property in decent condition"
+      ],
+      "typicalTerms": {
+        "downPayment": "10-20%",
+        "interestRate": "6-10%",
+        "term": "15-30 years",
+        "closingTimeframe": "30-60 days"
+      },
+      "profitStrategy": "Buy low, sell high with owner financing or refinance",
+      "riskLevel": "low-medium"
+    },
+
+    "subjectTo": {
+      "name": "Subject-To",
+      "idealFor": [
+        "Existing mortgage in place",
+        "Behind on payments",
+        "Facing foreclosure",
+        "Need to sell immediately",
+        "Little to no equity"
+      ],
+      "requiredConditions": [
+        "Existing mortgage with decent terms",
+        "Seller motivated to avoid foreclosure",
+        "Property worth more than owed"
+      ],
+      "typicalTerms": {
+        "downPayment": "Minimal or none",
+        "takeOverPayments": "Existing mortgage payments",
+        "closingTimeframe": "7-21 days"
+      },
+      "profitStrategy": "Control property with little money down, rent or flip",
+      "riskLevel": "medium",
+      "warnings": [
+        "Due-on-sale clause risk",
+        "Requires mortgage servicing",
+        "Title seasoning considerations"
+      ]
+    },
+
+    "cash": {
+      "name": "Cash Purchase",
+      "idealFor": [
+        "Highly motivated sellers",
+        "Distressed properties",
+        "Quick close needed",
+        "Below market price opportunity",
+        "Probate or estate sales"
+      ],
+      "requiredConditions": [
+        "Property priced below 75% ARV",
+        "Clear title or solvable issues",
+        "Profit margin meets minimum"
+      ],
+      "typicalTerms": {
+        "downPayment": "100%",
+        "closingTimeframe": "7-14 days",
+        "asIs": true
+      },
+      "profitStrategy": "Quick flip or BRRRR method",
+      "riskLevel": "low"
+    },
+
+    "leaseOption": {
+      "name": "Lease Option",
+      "idealFor": [
+        "Seller can wait for full price",
+        "Property needs minor work",
+        "Seller testing market",
+        "Flexible timeline",
+        "Rental income potential"
+      ],
+      "requiredConditions": [
+        "Property suitable for renting",
+        "Seller willing to remain on title temporarily",
+        "Market trending upward"
+      ],
+      "typicalTerms": {
+        "optionFee": "3-5%",
+        "monthlyRent": "Market rate or below",
+        "term": "1-3 years",
+        "optionPrice": "Fixed or escalating"
+      },
+      "profitStrategy": "Sandwich lease, tenant-buyer, or exercise option",
+      "riskLevel": "medium"
+    },
+
+    "novation": {
+      "name": "Novation",
+      "idealFor": [
+        "Seller already in contract",
+        "Buyer can't close",
+        "Need to step into contract",
+        "Time-sensitive deal"
+      ],
+      "requiredConditions": [
+        "Existing purchase agreement",
+        "All parties agree to novation",
+        "Deal still makes sense"
+      ],
+      "typicalTerms": {
+        "assignmentFee": "Negotiable",
+        "closingTimeframe": "Per existing contract"
+      },
+      "profitStrategy": "Step into favorable contract, close or assign",
+      "riskLevel": "medium-high"
+    },
+
+    "wrapMortgage": {
+      "name": "Wrap Mortgage",
+      "idealFor": [
+        "Seller has existing mortgage",
+        "Seller wants to carry financing",
+        "Sophisticated seller",
+        "Buyer needs creative financing"
+      ],
+      "requiredConditions": [
+        "Existing mortgage with good terms",
+        "Seller understands wrap concept",
+        "Sufficient spread between rates"
+      ],
+      "typicalTerms": {
+        "downPayment": "10-20%",
+        "wrapRate": "2-3% above underlying mortgage",
+        "term": "Match or shorter than underlying"
+      },
+      "profitStrategy": "Interest rate spread, appreciation",
+      "riskLevel": "medium",
+      "warnings": [
+        "Due-on-sale clause",
+        "Complex legal structure",
+        "Requires sophisticated seller"
+      ]
+    },
+
+    "wholesaling": {
+      "name": "Wholesaling/Assignment",
+      "idealFor": [
+        "Quick flip opportunity",
+        "Motivated seller",
+        "Property has equity",
+        "Simple transaction preferred"
+      ],
+      "requiredConditions": [
+        "Strong buyer network",
+        "Property significantly below market",
+        "Assignable contract"
+      ],
+      "typicalTerms": {
+        "earnestMoney": "$100-$1000",
+        "assignmentFee": "$5000-$20000",
+        "closingTimeframe": "14-30 days"
+      },
+      "profitStrategy": "Assignment fee",
+      "riskLevel": "low-medium"
+    }
+  },
+
+  "communicationStyles": {
+    "directSeller": {
+      "tone": "empathetic and personable",
+      "approach": "problem-solver",
+      "language": "simple and clear",
+      "focus": "their specific situation",
+      "avoid": [
+        "Technical jargon",
+        "Aggressive sales tactics",
+        "Talking down to them"
+      ],
+      "emphasize": [
+        "Understanding their situation",
+        "Flexible solutions",
+        "Quick and easy process",
+        "Win-win outcome"
+      ]
+    },
+
+    "realtor": {
+      "tone": "professional and business-like",
+      "approach": "serious qualified buyer",
+      "language": "real estate terminology",
+      "focus": "ability to close and terms",
+      "avoid": [
+        "Being too casual",
+        "Unconventional language",
+        "Wasting their time"
+      ],
+      "emphasize": [
+        "Proof of funds",
+        "Quick decision making",
+        "Clear terms",
+        "Professional process"
+      ]
+    }
+  },
+
+  "signalDetection": {
+    "highMotivation": [
+      "foreclosure",
+      "divorce",
+      "probate",
+      "inherited",
+      "need to sell fast",
+      "must sell",
+      "urgent",
+      "behind on payments",
+      "relocating",
+      "job transfer",
+      "health issues",
+      "can't afford",
+      "tired landlord"
+    ],
+
+    "lowEquity": [
+      "owe more than",
+      "upside down",
+      "negative equity",
+      "recent purchase",
+      "little equity",
+      "high mortgage",
+      "refinanced recently"
+    ],
+
+    "distressedProperty": [
+      "needs work",
+      "fixer upper",
+      "as-is",
+      "handyman special",
+      "needs repairs",
+      "outdated",
+      "damage",
+      "foundation issues",
+      "roof needs",
+      "code violations"
+    ],
+
+    "timeConstraints": [
+      "30 days",
+      "60 days",
+      "quick close",
+      "asap",
+      "immediately",
+      "by end of month",
+      "before",
+      "deadline"
+    ],
+
+    "realtorIndicators": [
+      "listing agent",
+      "realtor",
+      "real estate agent",
+      "broker",
+      "MLS",
+      "showing",
+      "listing",
+      "representing",
+      "RE/MAX",
+      "Keller Williams",
+      "Century 21",
+      "Coldwell Banker"
+    ]
+  },
+
+  "autoApprovalRules": {
+    "requireManualReview": {
+      "conditions": [
+        {
+          "field": "confidence",
+          "operator": "lessThan",
+          "value": 0.6
+        },
+        {
+          "field": "profitProjection.estimatedProfit",
+          "operator": "lessThan",
+          "value": 30000
+        },
+        {
+          "field": "profitProjection.riskLevel",
+          "operator": "equals",
+          "value": "high"
+        },
+        {
+          "field": "redFlags.length",
+          "operator": "greaterThan",
+          "value": 2
+        }
+      ]
+    },
+
+    "autoApprove": {
+      "conditions": [
+        {
+          "field": "confidence",
+          "operator": "greaterThanOrEqual",
+          "value": 0.7
+        },
+        {
+          "field": "profitProjection.estimatedProfit",
+          "operator": "greaterThanOrEqual",
+          "value": 30000
+        },
+        {
+          "field": "profitProjection.riskLevel",
+          "operator": "in",
+          "value": ["low", "medium"]
+        },
+        {
+          "field": "validation.passedCriteria",
+          "operator": "equals",
+          "value": true
+        }
+      ]
+    },
+
+    "reject": {
+      "conditions": [
+        {
+          "field": "profitProjection.estimatedProfit",
+          "operator": "lessThan",
+          "value": 15000
+        },
+        {
+          "field": "confidence",
+          "operator": "lessThan",
+          "value": 0.3
+        }
+      ]
+    }
+  },
+
+  "n8nConnections": {
+    "required": [
+      {
+        "type": "email",
+        "service": "IMAP or Gmail",
+        "purpose": "Read incoming emails",
+        "credentialName": "Your Email Account"
+      },
+      {
+        "type": "email",
+        "service": "SMTP or Gmail",
+        "purpose": "Send response emails",
+        "credentialName": "Gmail Account"
+      },
+      {
+        "type": "ai",
+        "service": "OpenAI API",
+        "purpose": "AI analysis and generation",
+        "credentialName": "OpenAI Account",
+        "requiredModels": ["gpt-4-turbo-preview or gpt-4"]
+      }
+    ],
+
+    "optional": [
+      {
+        "type": "spreadsheet",
+        "service": "Google Sheets",
+        "purpose": "Log negotiations and track deals",
+        "credentialName": "Google Sheets Account"
+      },
+      {
+        "type": "crm",
+        "service": "Airtable",
+        "purpose": "Create and manage deal pipeline",
+        "credentialName": "Airtable Account"
+      }
+    ]
+  }
+}

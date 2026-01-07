@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government AI Knowledge Base System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Knowledge Base System</h1>
+            <p>Document Management & Intelligent Query System</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Panel: Document Management -->
+            <div class="panel documents-panel">
+                <h2>Document Repository</h2>
+
+                <!-- Upload Area -->
+                <div class="upload-section">
+                    <div id="dropZone" class="drop-zone">
+                        <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="drop-text">Upload Documents</p>
+                        <p class="drop-subtext">Click to select files or drag and drop</p>
+                        <p class="supported-formats">Supported formats: PDF, DOC, DOCX, TXT, MD</p>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt,.md" hidden>
+                    </div>
+
+                    <button id="uploadBtn" class="btn btn-primary" disabled>
+                        Upload Selected Files
+                    </button>
+                </div>
+
+                <!-- Document List -->
+                <div class="document-list-section">
+                    <div class="section-header">
+                        <h3>Document Archive</h3>
+                        <span id="docCount" class="badge">0</span>
+                    </div>
+
+                    <div id="documentList" class="document-list">
+                        <div class="empty-state">
+                            <p>No documents in repository</p>
+                            <p class="hint">Upload documents to begin indexing</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="actions-section">
+                    <button id="rebuildBtn" class="btn btn-secondary" disabled>
+                        Rebuild Index
+                    </button>
+                    <button id="clearAllBtn" class="btn btn-danger" disabled>
+                        Clear Repository
+                    </button>
+                </div>
+
+                <!-- Status -->
+                <div id="statusArea" class="status-area"></div>
+            </div>
+
+            <!-- Right Panel: Chat Interface -->
+            <div class="panel chat-panel">
+                <h2>Query Interface</h2>
+
+                <div id="chatMessages" class="chat-messages">
+                    <div class="welcome-message">
+                        <h3>AI Query System</h3>
+                        <p>Upload documents to the repository, then submit queries to retrieve information.</p>
+                        <p class="example-queries">Example queries:</p>
+                        <ul>
+                            <li>What are the key policy guidelines?</li>
+                            <li>Summarize the compliance requirements</li>
+                            <li>What procedures are documented for emergency protocols?</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <textarea
+                        id="chatInput"
+                        placeholder="Enter your query..."
+                        rows="3"
+                        disabled
+                    ></textarea>
+                    <button id="sendBtn" class="btn btn-primary" disabled>
+                        Submit
+                    </button>
+                </div>
+
+                <!-- Chat Stats -->
+                <div class="chat-stats">
+                    <span id="chatStats">System ready - awaiting document upload</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loadingText">Processing...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

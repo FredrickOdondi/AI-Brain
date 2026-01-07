@@ -1,0 +1,381 @@
+{
+  "name": "AI Real Estate Email Negotiator",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "postProcessAction": "markRead",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "email-trigger",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "credentials": {
+        "imap": {
+          "id": "1",
+          "name": "Your Email Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract email metadata\nconst items = $input.all();\nconst processedEmails = [];\n\nfor (const item of items) {\n  const emailData = {\n    from: item.json.from?.text || item.json.from,\n    to: item.json.to?.text || item.json.to,\n    subject: item.json.subject,\n    body: item.json.text || item.json.html,\n    date: item.json.date,\n    messageId: item.json.messageId,\n    // Extract plain text from HTML if needed\n    plainTextBody: (item.json.text || item.json.html || '').replace(/<[^>]*>/g, ''),\n    rawEmail: item.json\n  };\n  \n  processedEmails.push({ json: emailData });\n}\n\nreturn processedEmails;"
+      },
+      "id": "parse-email",
+      "name": "Parse Email Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an AI assistant analyzing real estate seller emails. Your job is to:\n1. Determine if the sender is a REALTOR or DIRECT SELLER\n2. Extract key information about the property and seller's situation\n3. Identify motivation level and urgency\n4. Detect any mentioned constraints (timeline, price expectations, etc.)\n\nRespond ONLY with valid JSON in this exact format:\n{\n  \"senderType\": \"realtor\" or \"direct_seller\",\n  \"sellerSituation\": {\n    \"motivation\": \"high/medium/low\",\n    \"urgency\": \"immediate/soon/flexible\",\n    \"propertyAddress\": \"extracted address or null\",\n    \"propertyType\": \"single_family/multi_family/condo/land/other\",\n    \"constraints\": [\n      \"list of constraints like 'needs to close in 30 days', 'wants $200k minimum', etc.\"\n    ],\n    \"problems\": [\n      \"issues mentioned: foreclosure, probate, repairs needed, divorce, etc.\"\n    ],\n    \"equityPosition\": \"high/medium/low/negative/unknown\",\n    \"owedAmount\": \"amount if mentioned or null\",\n    \"askingPrice\": \"price if mentioned or null\"\n  },\n  \"keySignals\": [\n    \"important phrases or signals that indicate deal type suitability\"\n  ],\n  \"tone\": \"professional/casual/distressed/urgent\",\n  \"confidence\": 0.0-1.0\n}"
+            },
+            {
+              "role": "user",
+              "content": "=Email From: {{ $json.from }}\\n\\nSubject: {{ $json.subject }}\\n\\nBody:\\n{{ $json.plainTextBody }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "analyze-email",
+      "name": "Analyze Email with AI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI analysis and merge with email data\nconst item = $input.first();\nconst aiResponse = item.json.response || item.json.output || item.json.text;\n\nlet analysis;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = aiResponse.match(/```json\\s*([\\s\\S]*?)```/) || aiResponse.match(/```\\s*([\\s\\S]*?)```/);\n  const jsonString = jsonMatch ? jsonMatch[1] : aiResponse;\n  analysis = JSON.parse(jsonString.trim());\n} catch (error) {\n  // Fallback parsing\n  analysis = {\n    senderType: \"unknown\",\n    sellerSituation: {\n      motivation: \"unknown\",\n      urgency: \"unknown\"\n    },\n    keySignals: [],\n    tone: \"unknown\",\n    confidence: 0.0,\n    parseError: error.message\n  };\n}\n\nreturn [{\n  json: {\n    ...item.json,\n    analysis: analysis,\n    senderType: analysis.senderType,\n    situation: analysis.sellerSituation\n  }\n}];"
+      },
+      "id": "parse-analysis",
+      "name": "Parse AI Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.senderType }}",
+              "operation": "equals",
+              "value2": "realtor"
+            }
+          ]
+        }
+      },
+      "id": "route-by-sender",
+      "name": "Route by Sender Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a real estate investment analyst. Based on the seller's situation, recommend the BEST deal structure.\n\nAvailable Deal Structures:\n1. SELLER FINANCE - Good for: sellers who own free/clear or have low mortgage, need monthly income, not in rush\n2. SUBJECT-TO - Good for: sellers with existing mortgage, behind on payments, need to sell fast, avoid foreclosure\n3. CASH - Good for: highly motivated sellers, distressed property, needs quick close, below market price\n4. LEASE OPTION - Good for: sellers who can wait, property needs work, want to test market, flexible timeline\n5. NOVATION - Good for: sellers in contract but can't close, need to assign their position\n6. WRAP MORTGAGE - Good for: seller has existing mortgage but wants to carry financing, sophisticated sellers\n7. WHOLESALING - Good for: quick flip opportunity, motivated seller, property has equity, simple transaction\n\nInvestment Criteria:\n- Minimum profit margin: $30,000\n- Max ARV ratio: 75%\n- Preferred hold time: 6-24 months\n- Cash reserves required: $10,000 minimum\n\nAnalyze the situation and respond with ONLY valid JSON:\n{\n  \"recommendedDealType\": \"the best deal structure\",\n  \"alternativeDealTypes\": [\"array of backup options\"],\n  \"reasoning\": \"why this deal structure fits\",\n  \"estimatedTerms\": {\n    \"purchasePrice\": \"estimated offer price\",\n    \"downPayment\": \"if applicable\",\n    \"monthlyPayment\": \"if applicable\",\n    \"interestRate\": \"if applicable\",\n    \"term\": \"length of agreement\",\n    \"closingTimeframe\": \"how fast can we close\"\n  },\n  \"profitProjection\": {\n    \"estimatedProfit\": \"amount\",\n    \"riskLevel\": \"low/medium/high\",\n    \"timeToProfit\": \"estimated months\"\n  },\n  \"redFlags\": [\"any concerns or risks\"],\n  \"confidence\": 0.0-1.0\n}"
+            },
+            {
+              "role": "user",
+              "content": "=Seller Situation Analysis:\\n{{ JSON.stringify($json.analysis, null, 2) }}\\n\\nOriginal Email:\\nFrom: {{ $json.from }}\\nSubject: {{ $json.subject }}\\nBody: {{ $json.plainTextBody }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "deal-structure-ai-direct",
+      "name": "AI Deal Structure (Direct Seller)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a real estate investment analyst working with REALTORS. Your approach must be more professional and conform to standard real estate practices.\n\nAvailable Deal Structures (Realtor-appropriate):\n1. CASH OFFER - Standard cash purchase, quick close\n2. CONVENTIONAL FINANCING - Traditional bank loan, standard terms\n3. SELLER CONCESSIONS - Ask seller to cover closing costs or repairs\n4. CREATIVE FINANCING - Propose seller financing if appropriate\n5. ASSIGNMENT - If representing buyer who may assign\n\nInvestment Criteria:\n- Minimum profit margin: $30,000\n- Max ARV ratio: 75%\n- Preferred hold time: 6-24 months\n- Professional presentation required\n\nAnalyze the situation and respond with ONLY valid JSON:\n{\n  \"recommendedDealType\": \"the best deal structure\",\n  \"alternativeDealTypes\": [\"array of backup options\"],\n  \"reasoning\": \"why this deal structure fits\",\n  \"estimatedTerms\": {\n    \"offerPrice\": \"estimated offer\",\n    \"earnestMoney\": \"typical 1-3%\",\n    \"closingTimeframe\": \"days to close\",\n    \"contingencies\": [\"inspection\", \"financing\", etc.],\n    \"specialTerms\": \"any special requests\"\n  },\n  \"profitProjection\": {\n    \"estimatedProfit\": \"amount\",\n    \"riskLevel\": \"low/medium/high\",\n    \"timeToProfit\": \"estimated months\"\n  },\n  \"realtorConsiderations\": [\"important points for realtor relationship\"],\n  \"redFlags\": [\"any concerns or risks\"],\n  \"confidence\": 0.0-1.0\n}"
+            },
+            {
+              "role": "user",
+              "content": "=Seller Situation Analysis:\\n{{ JSON.stringify($json.analysis, null, 2) }}\\n\\nOriginal Email:\\nFrom: {{ $json.from }}\\nSubject: {{ $json.subject }}\\nBody: {{ $json.plainTextBody }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "deal-structure-ai-realtor",
+      "name": "AI Deal Structure (Realtor)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1250, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse deal structure recommendation\nconst item = $input.first();\nconst aiResponse = item.json.response || item.json.output || item.json.text;\n\nlet dealStructure;\ntry {\n  const jsonMatch = aiResponse.match(/```json\\s*([\\s\\S]*?)```/) || aiResponse.match(/```\\s*([\\s\\S]*?)```/);\n  const jsonString = jsonMatch ? jsonMatch[1] : aiResponse;\n  dealStructure = JSON.parse(jsonString.trim());\n} catch (error) {\n  dealStructure = {\n    recommendedDealType: \"CASH\",\n    reasoning: \"Default to cash offer due to parsing error\",\n    confidence: 0.3,\n    parseError: error.message\n  };\n}\n\nreturn [{\n  json: {\n    ...item.json,\n    dealStructure: dealStructure\n  }\n}];"
+      },
+      "id": "parse-deal-structure",
+      "name": "Parse Deal Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate against investment criteria\nconst item = $input.first();\nconst dealStructure = item.json.dealStructure;\nconst situation = item.json.situation;\n\n// Investment criteria validation\nconst criteria = {\n  minProfit: 30000,\n  maxARVRatio: 0.75,\n  minHoldTime: 6,\n  maxHoldTime: 24,\n  minCashReserves: 10000\n};\n\nconst validation = {\n  passedCriteria: true,\n  warnings: [],\n  approvalStatus: \"pending_review\"\n};\n\n// Check profit projection\nif (dealStructure.profitProjection?.estimatedProfit) {\n  const profitStr = String(dealStructure.profitProjection.estimatedProfit).replace(/[^0-9]/g, '');\n  const profit = parseInt(profitStr) || 0;\n  \n  if (profit < criteria.minProfit) {\n    validation.warnings.push(`Estimated profit $${profit} is below minimum $${criteria.minProfit}`);\n    validation.passedCriteria = false;\n  }\n}\n\n// Check confidence level\nif (dealStructure.confidence < 0.6) {\n  validation.warnings.push(`Low confidence score: ${dealStructure.confidence}`);\n  validation.approvalStatus = \"requires_manual_review\";\n}\n\n// Check for red flags\nif (dealStructure.redFlags && dealStructure.redFlags.length > 0) {\n  validation.warnings.push(`Red flags detected: ${dealStructure.redFlags.join(', ')}`);\n  validation.approvalStatus = \"requires_manual_review\";\n}\n\n// Check risk level\nif (dealStructure.profitProjection?.riskLevel === \"high\") {\n  validation.warnings.push(\"High risk deal - recommend caution\");\n  validation.approvalStatus = \"requires_manual_review\";\n}\n\n// Auto-approve if all criteria met\nif (validation.passedCriteria && validation.warnings.length === 0 && dealStructure.confidence >= 0.7) {\n  validation.approvalStatus = \"auto_approved\";\n}\n\nreturn [{\n  json: {\n    ...item.json,\n    validation: validation,\n    shouldProceed: validation.approvalStatus !== \"rejected\"\n  }\n}];"
+      },
+      "id": "validate-criteria",
+      "name": "Validate Investment Criteria",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.shouldProceed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-approval",
+      "name": "Check if Approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo-preview",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an expert real estate negotiator writing on behalf of an investor. \n\nYour writing style should:\n- Be professional but personable\n- Show genuine interest in helping the seller\n- Present the deal structure as a solution to THEIR problems\n- Build trust and credibility\n- Be clear and concise\n- Avoid aggressive sales tactics\n- Focus on win-win solutions\n\nFor DIRECT SELLERS:\n- More casual and empathetic tone\n- Focus on solving their specific problem\n- Explain creative financing in simple terms\n- Position yourself as a problem-solver, not just a buyer\n\nFor REALTORS:\n- Professional and business-like tone\n- Use proper real estate terminology\n- Show you're a serious buyer with ability to close\n- Respect their time and process\n- Follow standard real estate protocols\n\nWrite a response email that:\n1. Acknowledges their email/situation\n2. Shows understanding of their needs\n3. Presents your recommended deal structure\n4. Explains the benefits for them\n5. Proposes next steps\n6. Maintains your credibility\n\nIMPORTANT: Respond with ONLY the email body text, no JSON, no extra formatting. Just the email content ready to send."
+            },
+            {
+              "role": "user",
+              "content": "=Generate a negotiation email based on:\\n\\nSENDER TYPE: {{ $json.senderType }}\\n\\nORIGINAL EMAIL:\\nFrom: {{ $json.from }}\\nSubject: {{ $json.subject }}\\nBody: {{ $json.plainTextBody }}\\n\\nANALYSIS:\\n{{ JSON.stringify($json.analysis, null, 2) }}\\n\\nRECOMMENDED DEAL:\\n{{ JSON.stringify($json.dealStructure, null, 2) }}\\n\\nVALIDATION:\\n{{ JSON.stringify($json.validation, null, 2) }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "generate-email",
+      "name": "Generate Negotiation Email",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [2050, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "2",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare email for sending\nconst item = $input.first();\nconst generatedEmail = item.json.response || item.json.output || item.json.text;\n\n// Create subject line\nlet subject = \"Re: \" + (item.json.subject || \"Your Property\");\n\n// Extract recipient\nconst recipient = item.json.from;\n\nreturn [{\n  json: {\n    to: recipient,\n    subject: subject,\n    body: generatedEmail,\n    originalEmail: item.json.plainTextBody,\n    dealStructure: item.json.dealStructure,\n    analysis: item.json.analysis,\n    validation: item.json.validation,\n    metadata: {\n      processedAt: new Date().toISOString(),\n      senderType: item.json.senderType,\n      recommendedDeal: item.json.dealStructure?.recommendedDealType,\n      approvalStatus: item.json.validation?.approvalStatus\n    }\n  }\n}];"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Email Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "email": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email Response",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [2450, 400],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "3",
+          "name": "Gmail Account"
+        }
+      },
+      "notes": "Sends the negotiation email. Change to 'send' instead of 'sendAndWait' for production"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "docId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Negotiations",
+        "columns": {
+          "mappings": [
+            {
+              "column": "Timestamp",
+              "value": "={{ $json.metadata.processedAt }}"
+            },
+            {
+              "column": "Sender",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "column": "Sender Type",
+              "value": "={{ $json.metadata.senderType }}"
+            },
+            {
+              "column": "Deal Type",
+              "value": "={{ $json.metadata.recommendedDeal }}"
+            },
+            {
+              "column": "Approval Status",
+              "value": "={{ $json.metadata.approvalStatus }}"
+            },
+            {
+              "column": "Estimated Profit",
+              "value": "={{ $json.dealStructure.profitProjection?.estimatedProfit }}"
+            },
+            {
+              "column": "Confidence",
+              "value": "={{ $json.dealStructure.confidence }}"
+            },
+            {
+              "column": "Original Subject",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "column": "Response Sent",
+              "value": "Yes"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-to-sheet",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2650, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4",
+          "name": "Google Sheets Account"
+        }
+      },
+      "notes": "Optional: Track all negotiations in a spreadsheet"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": "YOUR_AIRTABLE_BASE_ID",
+        "table": "Deals",
+        "fields": {
+          "mappings": [
+            {
+              "field": "Seller Email",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "field": "Sender Type",
+              "value": "={{ $json.metadata.senderType }}"
+            },
+            {
+              "field": "Deal Structure",
+              "value": "={{ $json.metadata.recommendedDeal }}"
+            },
+            {
+              "field": "Status",
+              "value": "Negotiation Sent"
+            },
+            {
+              "field": "Estimated Profit",
+              "value": "={{ $json.dealStructure.profitProjection?.estimatedProfit }}"
+            },
+            {
+              "field": "Motivation Level",
+              "value": "={{ $json.analysis.sellerSituation?.motivation }}"
+            },
+            {
+              "field": "Property Address",
+              "value": "={{ $json.analysis.sellerSituation?.propertyAddress }}"
+            },
+            {
+              "field": "Notes",
+              "value": "={{ JSON.stringify($json.analysis, null, 2) }}"
+            }
+          ]
+        }
+      },
+      "id": "create-deal-record",
+      "name": "Create Deal in CRM",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2650, 550],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "5",
+          "name": "Airtable Account"
+        }
+      },
+      "notes": "Optional: Create deal record in Airtable or other CRM"
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.body }}",
+        "additionalFields": {
+          "metadata": {
+            "from": "={{ $json.to }}",
+            "subject": "={{ $json.subject }}",\n            \"dealType\": \"={{ $json.metadata.recommendedDeal }}\",\n            \"approvalStatus\": \"={{ $json.metadata.approvalStatus }}\"\n          }\n        }\n      },\n      \"id\": \"manual-review-queue\",\n      \"name\": \"Add to Manual Review Queue\",\n      \"type\": \"n8n-nodes-base.stopAndError\",\n      \"typeVersion\": 1,\n      \"position\": [2050, 200],\n      \"notes\": \"Sends to manual review if validation failed\"\n    },\n    {\n      \"parameters\": {\n        \"content\": \"Deal rejected due to not meeting investment criteria.\\n\\nSender: {{ $json.from }}\\nSubject: {{ $json.subject }}\\n\\nValidation Results:\\n{{ JSON.stringify($json.validation, null, 2) }}\",\n        \"additionalFields\": {}\n      },\n      \"id\": \"rejected-notification\",\n      \"name\": \"Deal Rejected Notification\",\n      \"type\": \"n8n-nodes-base.stopAndError\",\n      \"typeVersion\": 1,\n      \"position\": [2050, 100],\n      \"notes\": \"Notify when deal is rejected\"\n    }\n  ],\n  \"connections\": {\n    \"Email Trigger (IMAP)\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Parse Email Data\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Parse Email Data\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Analyze Email with AI\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Analyze Email with AI\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Parse AI Analysis\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Parse AI Analysis\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Route by Sender Type\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Route by Sender Type\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"AI Deal Structure (Realtor)\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ],\n        [\n          {\n            \"node\": \"AI Deal Structure (Direct Seller)\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"AI Deal Structure (Realtor)\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Parse Deal Structure\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"AI Deal Structure (Direct Seller)\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Parse Deal Structure\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Parse Deal Structure\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Validate Investment Criteria\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Validate Investment Criteria\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Check if Approved\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Check if Approved\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Generate Negotiation Email\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ],\n        [\n          {\n            \"node\": \"Add to Manual Review Queue\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Generate Negotiation Email\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Prepare Email Response\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Prepare Email Response\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Send Email Response\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Send Email Response\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Log to Google Sheets\",\n            \"type\": \"main\",\n            \"index\": 0\n          },\n          {\n            \"node\": \"Create Deal in CRM\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    }\n  },\n  \"settings\": {\n    \"executionOrder\": \"v1\"\n  },\n  \"staticData\": null,\n  \"tags\": [],\n  \"triggerCount\": 1,\n  \"updatedAt\": \"2026-01-03T13:36:00.000Z\",\n  \"versionId\": \"1\"\n}
